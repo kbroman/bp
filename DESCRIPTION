@@ -1,0 +1,10 @@
+Package: bp
+Version: 0.1-1
+Date: 6/3/2014
+Title: Test package for calling bp
+Description: Test package for calling bp
+Author: Bret Larget, Karl W Broman <kbroman@biostat.wisc.edu>
+Maintainer: Karl W Broman <kbroman@biostat.wisc.edu>
+Depends:
+    R (>= 2.15.0)
+License: GPL-3
