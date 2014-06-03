@@ -1,7 +1,7 @@
 #include <iostream>
 #include<iomanip>
 
-#include"rand.h"
+#include <R.h>
 #include "alias.h"
 
 using namespace std;
@@ -24,9 +24,9 @@ void Alias::initiate(vector<double>& ps, vector<int>& is) {
   computeTwoPointDistributions();
 }
 
-int Alias::pick(Rand& rand) {
-  int k = rand.rint(cells.size());
-  return ( rand.runif() < cells[k].cutoff ? cells[k].index : cells[k].alias );
+int Alias::pick() {
+  int k = (int)(unif_rand()*(double)cells.size());
+  return ( unif_rand() < cells[k].cutoff ? cells[k].index : cells[k].alias );
 }
 
 void Alias::computeTwoPointDistributions() {

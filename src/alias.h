@@ -1,7 +1,6 @@
 #ifndef ALIAS_H_
 #define ALIAS_H_
 
-#include "rand.h"
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -23,7 +22,7 @@ public:
   Alias(vector<double>&, vector<int>&);
   virtual ~Alias() {}
   void initiate(vector<double>&, vector<int>&);
-  int pick(Rand&);
+  int pick();
   void printTwoPointDistributions();
 };
 

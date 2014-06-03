@@ -54,7 +54,6 @@
 #include <cmath>
 #include <ctime>
 
-#include "rand.h" // code for random number generator
 #include "alias.h" // code to use the alias method to efficiently sample from discrete distributions (choose whole node nonuniformly)
 #include <R.h>
 
@@ -231,7 +230,7 @@ public:
   int getResponseSum() { return responseSum; }
   void initialSetActive(StateNumbers&);
   void initialAddActiveNeighbor() { numActiveNeighbors++; }
-  void initiate(Rand&,string,double,StateNumbers&);
+  void initiate(string,double,StateNumbers&);
   void addActiveNeighbor(set<Node*>& changedNodes) {
     save(changedNodes);
     numActiveNeighbors++;
@@ -336,8 +335,8 @@ public:
   void updateIllegal(set<Node*>&);
   void print(ostream&);
   void printAllIllegalNodes(ostream&);
-  void initiateActivities(Rand&);
-  double mcmcFlipWNode(Rand&,bool);
+  void initiateActivities();
+  double mcmcFlipWNode(bool);
   void check(ostream&);
   void countResponse();
   void activateAllIllegalNodes();
@@ -494,7 +493,7 @@ int WNode::countResponse()
   return responseSum;
 }
 
-void WNode::initiate(Rand& rand,string initialState,double pi,StateNumbers& stateNumbers)
+void WNode::initiate(string initialState,double pi,StateNumbers& stateNumbers)
 {
 //  if want to start with all whole nodes inactive, do nothing
   if ( initialState == "inactive" )
@@ -502,7 +501,7 @@ void WNode::initiate(Rand& rand,string initialState,double pi,StateNumbers& stat
 
 //  if want to start with a random start with probability pi for each whole node to be active, do this
   if ( initialState == "random" ) {
-    if ( rand.runif() < pi )
+    if ( unif_rand() < pi )
       initialSetActive(stateNumbers);
     return;
   }
@@ -533,12 +532,12 @@ void State::activateAllIllegalNodes()
 // Call the initiate routine for each whole node.
 // Then loop through and activate all illegal nodes.
 // After activation is set for all nodes, loop through and count the number of initial illegal nodes (should be zero!!!)
-void State::initiateActivities(Rand& rand)
+void State::initiateActivities()
 {
   stateNumbers.numInactiveWholeNodes = getNumWholeNodes();
 
   for ( vector<WNode*>::iterator p=wnodes.begin(); p != wnodes.end(); ++p )
-    (*p)->initiate(rand,mcmcParameters.initialState,modelNumbers.pi,stateNumbers);
+    (*p)->initiate(mcmcParameters.initialState,modelNumbers.pi,stateNumbers);
 
   activateAllIllegalNodes();
 
@@ -640,13 +639,13 @@ void PNode::mcmcFlipWNode(set<Node*>& changedNodes,StateNumbers& stateNumbers,bo
 }
 
 // Run under modified space where modified log-likelihood = regular log-likelihood - penalty*(number of illegal states)
-double State::mcmcFlipWNode(Rand& rand,bool postBurnin)
+double State::mcmcFlipWNode(bool postBurnin)
 {
   save();
   set<Node*> changedNodes;
 // use alias method to select wnode
-  int i = wDist.pick(rand);
-//  int i = rand.rint(wnodes.size());
+  int i = wDist.pick();
+//  int i = rint(wnodes.size());
   (wnodes[i])->mcmcFlipWNode(changedNodes,stateNumbers);
   updateIllegal(changedNodes);
   double newLogLikelihood = calculateLogLikelihood();
@@ -655,7 +654,7 @@ double State::mcmcFlipWNode(Rand& rand,bool postBurnin)
 				      - (savedStateNumbers.logLikelihood + savedStateNumbers.logPrior - mcmcParameters.penalty*savedStateNumbers.numIllegalNodes) );
   if ( acceptanceProbability > 1 )
     acceptanceProbability = 1.0;
-  if ( rand.runif() > acceptanceProbability ) { // reject proposal
+  if ( unif_rand() > acceptanceProbability ) { // reject proposal
     restore(changedNodes);
   }
   else { // accept proposal
@@ -767,12 +766,11 @@ void initialize(char *out, char *whole, char *part, char *edge,
                 double alpha, double beta, double pi,
                 int nburn, int ngen, int sub,
                 double penalty, char *initial,
-                Rand &rand,State &state)
+                State &state)
 
 {
   string wholeFile,partFile,edgeFile,rootFile;
   int numGen=0, numBurnin=0, subSampleRate=1, i;
-  unsigned int seed1=1234,seed2=5678;
   string initialState = "inactive";
 
   wholeFile = (string)whole;
@@ -797,14 +795,6 @@ void initialize(char *out, char *whole, char *part, char *edge,
     error("pi must be > 0 and < 1");
   if ( numGen < 0 || numBurnin < 0 || subSampleRate < 0)
     error("numGen, numBurnin, and subSampleRate must be >= 0");
-
-// Reset seeds of random number generator
-  cerr << "Setting seeds of random number generator....";
-  if ( seed1>0 )
-    rand.setSeed1(seed1);
-  if ( seed2>0 )
-    rand.setSeed2(seed2);
-  cerr << "done." << endl;
 
 // Set root file
   state.setRootFile(rootFile);
@@ -889,7 +879,7 @@ void initialize(char *out, char *whole, char *part, char *edge,
 
   cerr << "Initiating activities at random....";
   state.countResponse();
-  state.initiateActivities(rand);
+  state.initiateActivities();
   cerr << "done." << endl;
 
   state.calculateInitialLogLikelihood();
@@ -911,7 +901,6 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
         int nburn, int ngen, int sub,
         double penalty, char *initial)
 {
-  Rand rand;
   State state;
 
   time_t initTime;
@@ -919,7 +908,7 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 
   initialize(out_file,whole_file,part_file,edge_file,
              alpha,beta,pi,nburn,ngen,sub,penalty,initial,
-             rand,state);
+             state);
 
 // open output files
   ofstream burn;
@@ -940,7 +929,7 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 
     R_CheckUserInterrupt(); /* check for ^C */
 
-    double acceptanceProbability = state.mcmcFlipWNode(rand,false);
+    double acceptanceProbability = state.mcmcFlipWNode(false);
     if ( k % state.getSubSampleRate() == 0 ) {
       burn << setprecision(4) << setw(8) << acceptanceProbability << " ";
       state.print(burn);
@@ -964,7 +953,7 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 
     R_CheckUserInterrupt(); /* check for ^C */
 
-    double acceptanceProbability = state.mcmcFlipWNode(rand,true);
+    double acceptanceProbability = state.mcmcFlipWNode(true);
     if ( k % state.getSubSampleRate() == 0 ) {
       sample << setprecision(4) << setw(8) << acceptanceProbability << " ";
       state.print(sample);
@@ -1018,10 +1007,15 @@ void R_bp(char **out, char **whole, char **part, char **edge,
           int *nburn, int *ngen, int *sub, 
           double *penalty, char **initial)
 {
+  GetRNGstate();
+
   bp(*out, *whole, *part, *edge,
      *alpha, *beta, *pi,
      *nburn, *ngen, *sub,
      *penalty, *initial);
+
+  PutRNGstate();
 }
+
 
 }
