@@ -56,6 +56,7 @@
 
 #include "rand.h" // code for random number generator
 #include "alias.h" // code to use the alias method to efficiently sample from discrete distributions (choose whole node nonuniformly)
+#include <R.h>
 
 using namespace std;
 
@@ -681,61 +682,6 @@ double State::mcmcFlipWNode(Rand& rand,bool postBurnin)
   return acceptanceProbability;
 }
 
-void usage()
-{
-  cerr << "Usage: bp [flags and parameter settings]" << endl << endl;
-  cerr << "All arguments take the form of a flag followed by a parameter value, separated by space." << endl;
-  cerr << "Arguments may appear in any order." << endl;
-  cerr << "Some arguments are required, others are optional." << endl << endl;
-  cerr << "Required arguments:" << endl;
-  cerr << "  Flag            Value      Description" << endl;
-  cerr << "============================================================" << endl;
-  cerr << " --out or -o      filename   Root name for all output files" << endl;
-  cerr << " --whole or -w    filename   Input file with whole node info." << endl;
-  cerr << " --part or -p     filename   Input file with part node info." << endl;
-  cerr << " --edge or -e     filename   Input file with edge info." << endl;
-  cerr << " --alpha          number     Parameter alpha (0 < alpha < beta < 1)" << endl;
-  cerr << " --beta           number     Parameter beta (0 < alpha < beta < 1)" << endl;
-  cerr << " --pi             number     Parameter pi (0 < pi < 1)" << endl;
-  cerr << "============================================================" << endl << endl;
-  cerr << "Optional arguments:" << endl;
-  cerr << "  Flag            Value      Description                                          Default Value" << endl;
-  cerr << "===============================================================================================" << endl;
-  cerr << " --seed1          integer    Seed for random number generator ({1,...,65536})     1234" << endl;
-  cerr << " --seed2          integer    Seed for random number generator ({1,...,65536})     5678" << endl;
-  cerr << " --nburn or -b    integer    Number of burn-in generations                        0" << endl;
-  cerr << " --ngen or -n     integer    Number of sample generations                         0" << endl;
-  cerr << " --sub or -s      integer    Subsample rate for burn-in and sample files          1" << endl;
-  cerr << " --penalty        number     Penalty per illegal node to loglikelihood            0.0" << endl;
-  cerr << " --initial        option     Initial state, one of:                               inactive" << endl;
-  cerr << "                               inactive --- all whole nodes inactive" << endl;
-  cerr << "                               random --- all whole nodes active with" << endl;
-  cerr << "                                  probability pi, no illegal nodes" << endl;
-  cerr << "                               high --- all nodes with proportion of connected" << endl;
-  cerr << "                                 part nodes with response equal to 1 above 0.4" << endl;
-  cerr << "                                  are active, no illegal nodes" << endl;
-  cerr << "============================================================================================" << endl << endl;
-  cerr << " Note that specified number of burn-in generations does not ensure sufficient burn-in.  You must check!" << endl;
-  cerr << " Output files are:" << endl;
-  cerr << "   .log --- log file with time/date program is run and specified command line." << endl;
-  cerr << "   .whole --- file with one row for each whole node, summaries of legal posterior sample." << endl;
-  cerr << "   .burn --- file with one row for each subsampled burn generation." << endl;
-  cerr << "   .sample --- file with one row for each subsampled sample generation." << endl << endl;
-  cerr << "Additional information is sent to the screen with summaries of the graph and the estimated time to program completion." << endl << endl;
-  cerr << "Example:" << endl << endl;
-  cerr << "bp -o run1 -w foo.whole -p foo.part -e foo.edge --alpha 0.05 --beta 0.20 --pi 0.01 --nburn 100000 --ngen 10000000 --sub 1000 --penalty 2 --initial random" << endl << endl;
-  exit(1);
-}
-
-// Used for parsing the command line argument.
-void checkFlag(string key,int i,int argc)
-{
-  if ( i==argc ) {
-    cerr << "Error: flag " << key << " is not followed by required argument." << endl;
-    usage();
-  }
-}
-
 // Used for error messages when a file fails to open.
 void openFile(ifstream& f,string name)
 {
@@ -817,177 +763,40 @@ void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
 // 7. Select a random starting state by selecting random active whole nodes.
 // 8. Update the number of active neighbors for all nodes and update the number of illegal nodes.
 // 9. Calculate the initial log-likelihood.
-void initialize(int argc,char* argv[],Rand &rand,State &state)
+void initialize(char *out, char *whole, char *part, char *edge,
+                double alpha, double beta, double pi,
+                int nburn, int ngen, int sub,
+                double penalty, char *initial,
+                Rand &rand,State &state)
+
 {
   string wholeFile,partFile,edgeFile,rootFile;
-  unsigned int seed1=0,seed2=0;
-  bool wholeFileSet=false, partFileSet=false,edgeFileSet=false,rootFileSet=false;
-  double alpha=0.0,beta=0.0,pi=0.0,penalty=0.0;
-  int numGen=0, numBurnin=0, subSampleRate=1;
+  int numGen=0, numBurnin=0, subSampleRate=1, i;
+  unsigned int seed1=1234,seed2=5678;
   string initialState = "inactive";
 
-  if ( argc==1 )
-    usage();
+  wholeFile = (string)whole;
+  partFile = (string)part;
+  edgeFile = (string)edge;
+  rootFile = (string)out;
 
-  int i=1;
-
-  while ( i < argc ) {
-    string key=argv[i++];
-
-    if ( key=="--help" || key=="=h" )
-      usage();
-
-    if ( key=="-w" || key=="--whole" ) {
-      checkFlag(key,i,argc);
-      wholeFile = (string)(argv[i]);
-      wholeFileSet = true;
-    }
-    else if ( key=="-p" || key=="--part" ) {
-      checkFlag(key,i,argc);
-      partFile = (string)(argv[i]);
-      partFileSet = true;
-    }
-    else if ( key=="-e" || key=="--edge" ) {
-      checkFlag(key,i,argc);
-      edgeFile = (string)(argv[i]);
-      edgeFileSet = true;
-    }
-    else if ( key=="-o" || key=="--out" ) {
-      checkFlag(key,i,argc);
-      rootFile = (string)(argv[i]);
-      rootFileSet = true;
-    }
-    else if ( key=="--initial" ) {
-      checkFlag(key,i,argc);
-      initialState = (string)(argv[i]);
-      if ( (initialState != "inactive") && (initialState != "random") && (initialState != "high") ) {
-	cerr << "Error: flag --initial must be followed by one of these arguments [ inactive | random | high ], not " << initialState << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--seed1" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> seed1;
-      if ( seed1==0 ) {
-	cerr << "Error: seed1 must be a positive integer." << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--seed2" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> seed2;
-      if ( seed2==0 ) {
-	cerr << "Error: seed2 must be a positive integer." << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--ngen" || key=="-n" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> numGen;
-      if ( numGen < 0 ) {
-	cerr << "Error: number of generations cannot be negative." << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--nburn" || key=="-b" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> numBurnin;
-      if ( numBurnin < 0 ) {
-	cerr << "Error: number of burn-in generations cannot be negative." << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--sub" || key=="-s" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> subSampleRate;
-      if ( subSampleRate < 0 ) {
-	cerr << "Error: sub-sample rate cannot be negative." << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--penalty" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> penalty;
-      if ( penalty < 0 ) {
-	cerr << "Error: penalty " << penalty << " cannot be negative" << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--alpha" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> alpha;
-      if ( alpha >= 1 || alpha <= 0 ) {
-	cerr << "Error: alpha value " << alpha << " must be between 0 and 1" << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--beta" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> beta;
-      if ( beta >= 1 || beta <= 0 ) {
-	cerr << "Error: alpha value " << beta << " must be between 0 and 1" << endl;
-	exit(1);
-      }
-    }
-    else if ( key=="--pi" ) {
-      checkFlag(key,i,argc);
-      stringstream s(argv[i]);
-      s >> pi;
-      if ( pi >= 1 || pi <= 0 ) {
-	cerr << "Error: pi value " << pi << " must be between 0 and 1" << endl;
-	exit(1);
-      }
-    }
-    else {
-      cerr << "Error: Did not recognize argument flag " << key << endl;
-      usage();
-    }
-    ++i;
-  }
-  bool kill=false;
-  if ( !rootFileSet ) {
-    cerr << "Error: no flag --out or -o followed by output root file name." << endl;
-    kill = true;
-  }
-  if ( !wholeFileSet ) {
-    cerr << "Error: no flag --whole or -w followed by input whole node file name." << endl;
-    kill = true;
-  }
-  if ( !partFileSet ) {
-    cerr << "Error: no flag --part or -p followed by input part node file name." << endl;
-    kill = true;
-  }
-  if ( !edgeFileSet ) {
-    cerr << "Error: no flag --edge or -e followed by input edge node file name." << endl;
-    kill = true;
-  }
-  if ( alpha==0 ) {
-    cerr << "Error: no flag --alpha followed by alpha (between 0 and 1)." << endl;
-    kill = true;
-  }
-  if ( beta==0 ) {
-    cerr << "Error: no flag --beta followed by beta (between 0 and 1)." << endl;
-    kill = true;
-  }
-  if ( alpha >= beta ) {
-    cerr << "Error: alpha (" << alpha << ") must be less than beta (" << beta << ")." << endl;
-    kill = true;
-  }
-  if ( pi==0 ) {
-    cerr << "Error: no flag --pi followed by pi (between 0 and 1)." << endl;
-    kill = true;
+  initialState = (string)initial;
+  if ( (initialState != "inactive") && (initialState != "random") && (initialState != "high") ) {
+    error("Error: flag --initial must be followed by one of these arguments [ inactive | random | high ]");
   }
 
-  if ( kill )
-    usage();
+  numGen = ngen;
+  numBurnin = nburn;
+  subSampleRate = sub;
+
+  if ( alpha<=0 || alpha >=beta)
+    error("alpha must be > 0 and < beta");
+  if ( beta<=alpha || beta >= 1 )
+    error("beta must be >= alpha and < 1");
+  if ( pi<= 0 || pi >= 1 )
+    error("pi must be > 0 and < 1");
+  if ( numGen < 0 || numBurnin < 0 || subSampleRate < 0)
+    error("numGen, numBurnin, and subSampleRate must be >= 0");
 
 // Reset seeds of random number generator
   cerr << "Setting seeds of random number generator....";
@@ -1097,15 +906,19 @@ void initialize(int argc,char* argv[],Rand &rand,State &state)
   cerr << "   Number of edges       = " << state.getNumEdges() << endl;
 }
 
-int main(int argc,char* argv[])
+void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
+        double alpha, double beta, double pi,
+        int nburn, int ngen, int sub,
+        double penalty, char *initial)
 {
-  Rand rand;
   State state;
 
   time_t initTime;
   time(&initTime);
 
-  initialize(argc,argv,rand,state);
+  initialize(out_file,whole_file,part_file,edge_file,
+             alpha,beta,pi,nburn,ngen,sub,penalty,initial,
+             rand,state);
 
 // open output files
   ofstream burn;
@@ -1115,11 +928,6 @@ int main(int argc,char* argv[])
   ofstream logfile;
   openOutputFile(logfile,state.getRootFile() + ".log");
 
-  logfile << "bp initiated at " << ctime(&initTime) << endl;
-  for ( int k=0; k < argc; ++k )
-    logfile << " " << argv[k];
-  logfile << endl;
-
   const int window=100000;
   time_t start,current;
   time(&start);
@@ -1128,6 +936,9 @@ int main(int argc,char* argv[])
   cerr << "Begin burnin runs." << endl;
   burn << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumBurnin(); ++k ) {
+
+    R_CheckUserInterrupt(); /* check for ^C */
+
     double acceptanceProbability = state.mcmcFlipWNode(rand,false);
     if ( k % state.getSubSampleRate() == 0 ) {
       burn << setprecision(4) << setw(8) << acceptanceProbability << " ";
@@ -1149,6 +960,9 @@ int main(int argc,char* argv[])
   time(&start);
   sample << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumGenerations(); ++k ) {
+
+    R_CheckUserInterrupt(); /* check for ^C */
+
     double acceptanceProbability = state.mcmcFlipWNode(rand,true);
     if ( k % state.getSubSampleRate() == 0 ) {
       sample << setprecision(4) << setw(8) << acceptanceProbability << " ";
@@ -1195,3 +1009,15 @@ int main(int argc,char* argv[])
   logfile << endl << "ended at " << ctime(&endTime) << endl;
   logfile << "Total running time is " << difftime(endTime,initTime) / 60 << " minutes." << endl;
 }
+
+void R_bp(char **out, char **whole, char **part, char **edge,
+          double *alpha, double *beta, double *pi,
+          int *nburn, int *ngen, int *sub, 
+          double *penalty, char **initial)
+{
+  bp(*out, *whole, *part, *edge,
+     *alpha, *beta, *pi,
+     *nburn, *ngen, *sub,
+     *penalty, *initial);
+}
+
