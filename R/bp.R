@@ -31,12 +31,12 @@ function(out="run1",  whole="T2D.whole", part="T2D.part", edge="T2D.edge",
 {
   initial <- match.arg(initial)
 
-  stopifnot(alpha > 0, alpha < 1)
-  stopifnot(beta > 0, beta < 1)
+  stopifnot(alpha > 0, alpha < beta, beta < 1)
   stopifnot(pi > 0, pi < 1)
   stopifnot(nburn >=0)
   stopifnot(ngen >= 0)
   stopifnot(sub >= 0)
+  stopifnot(penalty >= 0)
   
   z <- .C("R_bp",
           as.character(out),
