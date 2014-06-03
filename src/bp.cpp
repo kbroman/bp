@@ -1011,6 +1011,8 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
   logfile << "Total running time is " << difftime(endTime,initTime) / 60 << " minutes." << endl;
 }
 
+extern "C" {
+
 void R_bp(char **out, char **whole, char **part, char **edge,
           double *alpha, double *beta, double *pi,
           int *nburn, int *ngen, int *sub, 
@@ -1022,3 +1024,4 @@ void R_bp(char **out, char **whole, char **part, char **edge,
      *penalty, *initial);
 }
 
+}

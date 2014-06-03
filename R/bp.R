@@ -50,5 +50,6 @@ function(out="run1",  whole="T2D.whole", part="T2D.part", edge="T2D.edge",
           as.integer(ngen),
           as.integer(sub),
           as.double(penalty),
-          as.character(initial))
+          as.character(initial),
+          PACKAGE="bp")
 }
