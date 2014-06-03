@@ -911,6 +911,7 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
         int nburn, int ngen, int sub,
         double penalty, char *initial)
 {
+  Rand rand;
   State state;
 
   time_t initTime;
