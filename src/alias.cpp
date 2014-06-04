@@ -2,6 +2,7 @@
 #include<iomanip>
 
 #include <R.h>
+#include <R_ext/Print.h>
 #include "alias.h"
 
 using namespace std;
@@ -88,22 +89,22 @@ void Alias::computeTwoPointDistributions() {
 }
 
 void Alias::printTwoPointDistributions() {
-  cerr << "Two point distribution\n";
-  cerr << "Cutoff:\t";
+  REprintf("Two point distribution\n");
+  REprintf("Cutoff:\t");
   for (int i = 0; i < cells.size(); i++) {
-    cerr << cells[i].cutoff << "\t";
+    Rprintf("%d\t", cells[i].cutoff);
   }
-  cerr << endl;
-  cerr << "Index:\t";
+  REprintf("\n");
+  REprintf("Index:\t");
   for (int i = 0; i < cells.size(); i++) {
-    cerr << cells[i].index << "\t";
+    REprintf("%d\t", cells[i].index);
   }
-  cerr << endl;
-  cerr << "Alias:\t";
+  REprintf("\n");
+  REprintf("Alias:\t");
   for (int i = 0; i < cells.size(); i++) {
-    cerr << cells[i].alias << "\t";
+    REprintf("%d\t", cells[i].alias);
   }
-  cerr << endl;
+  REprintf("\n");
 }
 
 

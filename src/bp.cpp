@@ -3,6 +3,8 @@
 // November 13-14, 17-19, 27-29 2012
 // December 4, 2012
 //
+// Revisions by Karl Broman, 4-5 June 2014, for calling from R
+//
 // bp.C
 //
 // There is a bipartite graph with two types of nodes, PNodes (part nodes) and WNodes (whole nodes).
@@ -56,6 +58,7 @@
 
 #include "alias.h" // code to use the alias method to efficiently sample from discrete distributions (choose whole node nonuniformly)
 #include <R.h>
+#include <R_ext/Print.h>
 
 using namespace std;
 
@@ -439,11 +442,11 @@ void State::check(ostream& f)
 // Only used for debugging.
 void State::printAllIllegalNodes(ostream& f)
 {
-  cerr << "Illegal nodes:";
+  REprintf("Illegal nodes:");
   for ( vector<WNode*>::iterator p=wnodes.begin(); p != wnodes.end(); ++p )
     if ( (*p)->illegal() )
-      cerr << " " << (*p)->getNumber();
-  cerr << endl;
+      REprintf(" %d", (*p)->getNumber());
+  REprintf("\n");
 }
 
 // Prints the changeable state-level information on a single line.
@@ -686,7 +689,7 @@ void openFile(ifstream& f,string name)
 {
   f.open(name.c_str());
   if ( f.fail() || f.bad() ) {
-    cerr << "Error: could not open file " << name << " for reading." << endl;
+    REprintf("Error: could not open file %s for reading.\n", name.c_str());
     exit(1);
   }
 }
@@ -696,7 +699,7 @@ void openOutputFile(ofstream& f,string name)
   f.open(name.c_str());
   f.setf(ios::fixed,ios::floatfield);
   if ( f.fail() || f.bad() ) {
-    cerr << "Error: could not open file " << name << " for output." << endl;
+    REprintf("Error: could not open file %s for output.\n", name.c_str());
     exit(1);
   }
 }
@@ -718,7 +721,8 @@ void readPNodeFile(ifstream& f,map<string,int>& m,map<string,int>& response,stri
     int x;
     s >> name >> x;
     if ( m.count(name) > 0 ) {
-      cerr << "Error: " << fileName << " line " << i+1 << " contains a name already used in the same file." << endl;
+      REprintf("Error: %s line %d contains a name already used in the same file.\n", 
+               fileName.c_str(), i+1);
       exit(1);
     }
     else {
@@ -743,7 +747,8 @@ void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
     string name;
     s >> name;
     if ( m.count(name) > 0 ) {
-      cerr << "Error: " << fileName << " line " << i+1 << " contains a name already used in the same file." << endl;
+      REprintf("Error: %s line %d contains a name already used in the same file.\n", 
+               fileName.c_str(), i+1);
       exit(1);
     }
     else
@@ -801,11 +806,11 @@ void initialize(char *out, char *whole, char *part, char *edge,
 
 // Set alpha and beta and pi
 
-  cerr << "Setting alpha, beta, and pi....";
+  REprintf("Setting alpha, beta, and pi....");
   state.setAlpha(alpha);
   state.setBeta(beta);
   state.setPi(pi);
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
 // Set MCMC parameters
 
@@ -819,28 +824,28 @@ void initialize(char *out, char *whole, char *part, char *edge,
 
   ifstream f;
 
-  cerr << "Reading in whole nodes....";
+  REprintf("Reading in whole nodes....");
   openFile(f,wholeFile);
   map<string,int> wnodeNames;
   readWNodeFile(f,wnodeNames,wholeFile);
   f.close();
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
 // Read in the part nodes
 
-  cerr << "Reading in part nodes....";
+  REprintf("Reading in part nodes....");
   openFile(f,partFile);
   map<string,int> pnodeNames;
   map<string,int> responses;
   readPNodeFile(f,pnodeNames,responses,partFile);
   f.close();
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
 // Initialize nodes in State
   // 11/29/2012 fixed bug where edges were based on alphabetical order and not the order read in
   //            wnodes and pnodes now stored in the order read in, not the map order
   //            number should now match index in state
-  cerr << "Initializing nodes in state....";
+  REprintf("Initializing nodes in state....");
   state.resizePNodes(pnodeNames.size());
   state.resizeWNodes(wnodeNames.size());
 
@@ -852,11 +857,11 @@ void initialize(char *out, char *whole, char *part, char *edge,
     state.addPNode(new PNode(p->first,p->second,r->second), p->second);
     ++r;
   }
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
 // Read edge file and initialize edges in State
 
-  cerr << "Reading and initializing edges....";
+  REprintf("Reading and initializing edges....");
   openFile(f,edgeFile);
   string line;
   i=1;
@@ -865,22 +870,21 @@ void initialize(char *out, char *whole, char *part, char *edge,
     string wname,pname;
     s >> wname >> pname;
     if ( (wnodeNames.count(wname) == 0) || (pnodeNames.count(pname) == 0) ) {
-      cerr << "Error: edge file " << edgeFile << " line " << i << "/" << line
-	   << "/ contains a node name that is not in the files " << wholeFile
-	   << " or " << partFile << "." << endl;
+      REprintf("Error: edge file %s line %d/%s/ contains a node name that is not in the files %s or %s.\n",
+               edgeFile.c_str(), i, line.c_str(), wholeFile.c_str(), partFile.c_str());
       exit(1);
     }
     state.addEdge(wnodeNames[wname],pnodeNames[pname]);
     ++i;
   }
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
 // Initialize activities
 
-  cerr << "Initiating activities at random....";
+  REprintf("Initiating activities at random....");
   state.countResponse();
   state.initiateActivities();
-  cerr << "done." << endl;
+  REprintf("done.\n");
 
   state.calculateInitialLogLikelihood();
   state.calculateLogPrior();
@@ -888,12 +892,12 @@ void initialize(char *out, char *whole, char *part, char *edge,
 // Initialize alias for mcmcFlipWNode
   state.initiateAlias();
 
-  cerr << "State Summary:" << endl;
-  cerr << "   Number of whole nodes = " << state.getNumWholeNodes() << endl;
-  cerr << "   Number of part nodes  = " << state.getNumPartNodes() << endl;
-  cerr << "    Number Response == 1 = " << state.getNumResponseOne() << endl;
-  cerr << "    Number Response == 0 = " << state.getNumResponseZero() << endl;
-  cerr << "   Number of edges       = " << state.getNumEdges() << endl;
+  REprintf("State Summary:\n");
+  REprintf("   Number of whole nodes = %d\n", state.getNumWholeNodes());
+  REprintf("   Number of part nodes  = %d\n", state.getNumPartNodes());
+  REprintf("    Number Response == 1 = %d\n", state.getNumResponseOne());
+  REprintf("    Number Response == 0 = %d\n", state.getNumResponseZero());
+  REprintf("   Number of edges       = %d\n", state.getNumEdges());
 }
 
 void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
@@ -923,7 +927,7 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
   time(&start);
 
 // burnin
-  cerr << "Begin burnin runs." << endl;
+  REprintf("Begin burnin runs.\n");
   burn << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumBurnin(); ++k ) {
 
@@ -939,14 +943,15 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
       double secondsPerGeneration = difftime(current,start)/k;
       double remainBurnMinutes = (state.getNumBurnin()-k) * secondsPerGeneration / 60;
       double remainSampleMinutes = state.getNumGenerations() * secondsPerGeneration / 60;
-      cerr << setw(5) << (int)((100.0*k)/state.getNumBurnin())
-	   << "% complete, estimated burnin time remaining = " << (int)remainBurnMinutes
-	   << " minutes, total = " << (int)(remainBurnMinutes+remainSampleMinutes) + 1 << " minutes." << endl;
+      REprintf("%5d", (int)((100.0*k)/state.getNumBurnin()));
+	    REprintf("%% complete, estimated burnin time remaining = %d", (int)remainBurnMinutes);
+	    REprintf(" minutes, total = %d", (int)(remainBurnMinutes+remainSampleMinutes) + 1);
+      REprintf(" minutes.\n");
     }
   }
 
 // sample
-  cerr << "Begin sample runs." << endl;
+  REprintf("Begin sample runs.\n");
   time(&start);
   sample << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumGenerations(); ++k ) {
@@ -963,12 +968,12 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
       double secondsPerGeneration = difftime(current,start)/k;
       int remainSeconds = (int)((state.getNumGenerations()-k) * secondsPerGeneration);
       int remainMinutes = remainSeconds / 60 + 1;
-      cerr << setw(5) << (int)((100.0*k)/state.getNumGenerations())
-	   << "% complete, estimated time remaining = ";
+      REprintf("%5d", (int)((100.0*k)/state.getNumGenerations()));
+	    REprintf("%% complete, estimated time remaining = ");
       if ( remainMinutes > 1 )
-	cerr << remainMinutes << " minutes." << endl;
+        REprintf("%d minutes.\n", remainMinutes);
       else
-	cerr << remainSeconds << " seconds." << endl;
+        REprintf("%d seconds.\n", remainSeconds);
     }
   }
 // write output
