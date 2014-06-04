@@ -911,8 +911,6 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
   openOutputFile(burn,state.getRootFile() + ".burn");
   ofstream sample;
   openOutputFile(sample,state.getRootFile() + ".sample");
-  ofstream logfile;
-  openOutputFile(logfile,state.getRootFile() + ".log");
 
   const int window=100000;
   time_t start,current;
@@ -988,8 +986,6 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 
   time_t endTime;
   time(&endTime);
-  logfile << endl << "ended at " << ctime(&endTime) << endl;
-  logfile << "Total running time is " << difftime(endTime,initTime) / 60 << " minutes." << endl;
 }
 
 extern "C" {
