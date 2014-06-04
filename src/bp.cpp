@@ -348,6 +348,13 @@ public:
   int getNumEdges() { return edges.size(); }
   int getNumResponseOne() { return stateNumbers.numActiveOne + stateNumbers.numInactiveOne; }
   int getNumResponseZero() { return stateNumbers.numActiveZero + stateNumbers.numInactiveZero; }
+  int getNumActiveOne() { return stateNumbers.numActiveOne; }
+  int getNumActiveZero() { return stateNumbers.numActiveZero; }
+  int getNumInactiveOne() { return stateNumbers.numInactiveOne; }
+  int getNumInactiveZero() { return stateNumbers.numInactiveZero; }
+  int getNumIllegalNodes() { return stateNumbers.numIllegalNodes; }
+  int getNumActiveWholeNodes() { return stateNumbers.numActiveWholeNodes; }
+  int getNumActivePartNodes() { return stateNumbers.numActivePartNodes; }
 // use weight proportional to 6*(1 + ResponseSum)/(2 + Degree) + 1/sqrt(Degree)
 // why this weight?  not sure, but it picks small degree node more often and high response nodes more often
   void initiateAlias() {
@@ -891,9 +898,11 @@ void bp(char *out_file,
         char **resultName, int resultName_size,
         double *resultProb,
         int *resultCount, int *resultSample,
-        int *resultDegree, int *resultResponse)
+        int *resultDegree, int *resultResponse,
+        int n_samples, double **SamplesDouble, int **SamplesInt)
 {
   State state;
+  int cursample=0;
 
   time_t initTime;
   time(&initTime);
@@ -924,6 +933,22 @@ void bp(char *out_file,
 
     double acceptanceProbability = state.mcmcFlipWNode(false);
     if ( k % state.getSubSampleRate() == 0 ) {
+      if(cursample >= n_samples)
+        error("cursample exceeds available slots\n");
+      SamplesDouble[0][cursample] = acceptanceProbability;
+      SamplesDouble[1][cursample] = state.getLogLikelihood();
+      SamplesDouble[2][cursample] = state.getLogPrior();
+
+      SamplesInt[0][cursample] = state.getNumActiveOne();
+      SamplesInt[1][cursample] = state.getNumActiveZero();
+      SamplesInt[2][cursample] = state.getNumInactiveOne();
+      SamplesInt[3][cursample] = state.getNumInactiveZero();
+      SamplesInt[4][cursample] = state.getNumIllegalNodes();
+      SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
+      SamplesInt[6][cursample] = state.getNumActivePartNodes();
+
+      cursample++;
+
       burn << setprecision(4) << setw(8) << acceptanceProbability << " ";
       state.print(burn);
     }
@@ -949,6 +974,22 @@ void bp(char *out_file,
 
     double acceptanceProbability = state.mcmcFlipWNode(true);
     if ( k % state.getSubSampleRate() == 0 ) {
+      if(cursample >= n_samples)
+        error("cursample exceeds available slots\n");
+      SamplesDouble[0][cursample] = acceptanceProbability;
+      SamplesDouble[1][cursample] = state.getLogLikelihood();
+      SamplesDouble[2][cursample] = state.getLogPrior();
+
+      SamplesInt[0][cursample] = state.getNumActiveOne();
+      SamplesInt[1][cursample] = state.getNumActiveZero();
+      SamplesInt[2][cursample] = state.getNumInactiveOne();
+      SamplesInt[3][cursample] = state.getNumInactiveZero();
+      SamplesInt[4][cursample] = state.getNumIllegalNodes();
+      SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
+      SamplesInt[6][cursample] = state.getNumActivePartNodes();
+
+      cursample++;
+
       sample << setprecision(4) << setw(8) << acceptanceProbability << " ";
       state.print(sample);
     }
@@ -1007,9 +1048,21 @@ extern "C" {
             char **resultName, int *resultName_size,
             double *resultProb,
             int *resultCount, int *resultSample,
-            int *resultDegree, int *resultResponse)
+            int *resultDegree, int *resultResponse,
+            int *n_samples, double *samplesDouble, int *samplesInt)
   {
+    double *SamplesDouble[3];
+    int *SamplesInt[7];
+    int i;
+
     GetRNGstate();
+
+    SamplesDouble[0] = samplesDouble;
+    for(i=1; i<3; i++)
+      SamplesDouble[i] = SamplesDouble[i-1] + *n_samples;
+    SamplesInt[0] = samplesInt;
+    for(i=1; i<7; i++)
+      SamplesInt[i] = SamplesInt[i-1] + *n_samples;
 
     bp(*out,
        *n_whole, whole_names,
@@ -1020,7 +1073,8 @@ extern "C" {
        *penalty, *initial,
        resultName, *resultName_size,
        resultProb, resultCount, 
-       resultSample, resultDegree, resultResponse);
+       resultSample, resultDegree, resultResponse,
+       *n_samples, SamplesDouble, SamplesInt);
 
     PutRNGstate();
   }

@@ -53,6 +53,10 @@ function(out="testrun", whole, part, edge,
   maxnchar <- max(nchar(whole))
   blank <- paste(rep(" ", maxnchar), collapse="")
 
+  nsaved <- ceiling(nburn/sub) + ceiling(ngen/sub)
+  nsavedDbl <- 3
+  nsavedInt <- 7
+
   z <- .C("R_bp",
           as.character(out),
           as.integer(length(whole)),
@@ -78,12 +82,22 @@ function(out="testrun", whole, part, edge,
           resultSample=as.integer(rep(0, length(whole))),
           resultDegree=as.integer(rep(0, length(whole))),
           resultResponse=as.integer(rep(0, length(whole))),
+          as.integer(nsaved),
+          savedDouble=as.double(rep(0, nsaved*nsavedDbl)),
+          savedInt=as.integer(rep(0, nsaved*nsavedInt)),
           PACKAGE="bp")
 
-  data.frame(Name=z$resultName,
-             ActiveProbability=z$resultProb,
-             Count=z$resultCount,
-             Sample=z$resultSample,
-             Degree=z$resultDegree,
-             Response=z$resultResponse, stringsAsFactors=FALSE)
+  result <- data.frame(Name=z$resultName,
+                       ActiveProbability=z$resultProb,
+                       Count=z$resultCount,
+                       Sample=z$resultSample,
+                       Degree=z$resultDegree,
+                       Response=z$resultResponse, stringsAsFactors=FALSE)
+
+  saved <- cbind(matrix(z$savedDouble, ncol=nsavedDbl), matrix(z$savedInt, ncol=nsavedInt))
+  colnames(saved) <- c("AcceptanceProb", "LogLikelihood", "LogPrior",
+                       "ActiveOne", "ActiveZero", "InactiveOne", "InactiveZero", "Illegal", "ActiveWhole", "ActivePart")
+  attr(result, "samples") <- saved
+
+  result
 }
