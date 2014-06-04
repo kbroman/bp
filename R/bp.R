@@ -1,7 +1,6 @@
 #' MCMC with bipartite graph 
 #'
 #' MCMC with bipartite graph
-#' @param out Root name for output files
 #' @param whole Vector of character strings with names of whole nodes
 #' @param part Vector of 0's and 1's indicating active part nodes; names are the names of the part nodes
 #' @param edge Matrix with two columns; each row indicates an edge between a whole node and a part node
@@ -13,6 +12,9 @@
 #' @param sub Subsample rate for burn-in and sample files
 #' @param penalty Penalty per illegal node to loglikelihood
 #' @param initial Initial state (see Details)
+#'
+#' @return data frame with "whole" results; burn+sample detail are included as attributes,
+#' \code{"burn"} and \code{"sample"}
 #'
 #' @details The \code{initial} argument can take one of three values:
 #' \code{"inactive"} - all whole nodes inactive; \code{"random"} - all
@@ -26,10 +28,10 @@
 #'
 #' @examples
 #' data(t2d)
-#' bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
-#'    nburn=1000, ngen=1000, sub=100)
+#' bp.out <- bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
+#'              nburn=1000, ngen=1000, sub=100)
 bp <-
-function(out="run1",  whole, part, edge,
+function(out="testrun", whole, part, edge,
          alpha=0.05, beta=0.2, pi=0.01,
          nburn=10000, ngen=100000, sub=1000, penalty=2,
          initial=c("inactive", "random", "high"))
@@ -47,6 +49,9 @@ function(out="run1",  whole, part, edge,
   stopifnot(length(names(part)) == length(unique(names(part))))
   stopifnot(all(!is.na(part) & part==0 | part==1))
   stopifnot(all(edge[,1] %in% whole), all(edge[,2] %in% names(part)))
+
+  maxnchar <- max(nchar(whole))
+  blank <- paste(rep(" ", maxnchar), collapse="")
 
   z <- .C("R_bp",
           as.character(out),
@@ -66,5 +71,19 @@ function(out="run1",  whole, part, edge,
           as.integer(sub),
           as.double(penalty),
           as.character(initial),
+          resultName=as.character(rep(blank, length(whole))),
+          as.integer(maxnchar),
+          resultProb=as.double(rep(0, length(whole))),
+          resultCount=as.integer(rep(0, length(whole))),
+          resultSample=as.integer(rep(0, length(whole))),
+          resultDegree=as.integer(rep(0, length(whole))),
+          resultResponse=as.integer(rep(0, length(whole))),
           PACKAGE="bp")
+
+  data.frame(Name=z$resultName,
+             ActiveProbability=z$resultProb,
+             Count=z$resultCount,
+             Sample=z$resultSample,
+             Degree=z$resultDegree,
+             Response=z$resultResponse, stringsAsFactors=FALSE)
 }

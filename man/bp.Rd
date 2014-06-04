@@ -3,13 +3,11 @@
 \alias{bp}
 \title{MCMC with bipartite graph}
 \usage{
-bp(out = "run1", whole, part, edge, alpha = 0.05, beta = 0.2, pi = 0.01,
-  nburn = 10000, ngen = 100000, sub = 1000, penalty = 2,
+bp(out = "testrun", whole, part, edge, alpha = 0.05, beta = 0.2,
+  pi = 0.01, nburn = 10000, ngen = 100000, sub = 1000, penalty = 2,
   initial = c("inactive", "random", "high"))
 }
 \arguments{
-\item{out}{Root name for output files}
-
 \item{whole}{Vector of character strings with names of whole nodes}
 
 \item{part}{Vector of 0's and 1's indicating active part nodes; names are the names of the part nodes}
@@ -32,6 +30,10 @@ bp(out = "run1", whole, part, edge, alpha = 0.05, beta = 0.2, pi = 0.01,
 
 \item{initial}{Initial state (see Details)}
 }
+\value{
+data frame with "whole" results; burn+sample detail are included as attributes,
+\code{"burn"} and \code{"sample"}
+}
 \description{
 MCMC with bipartite graph
 }
@@ -44,8 +46,8 @@ with response equal to 1 above 0.4 are active, no illegal nodes.
 }
 \examples{
 data(t2d)
-bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
-   nburn=1000, ngen=1000, sub=100)
+bp.out <- bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
+             nburn=1000, ngen=1000, sub=100)
 }
 \keyword{models}
 

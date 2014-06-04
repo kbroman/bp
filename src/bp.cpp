@@ -487,7 +487,7 @@ void PNode::initialAddActiveNeighbor(StateNumbers& stateNumbers)
   }
 }
 
-// Loop through connected pnodes and count reponses
+// Loop through connected pnodes and count responses
 int WNode::countResponse()
 {
   responseSum = 0;
@@ -881,13 +881,17 @@ void initialize(char *out,
   REprintf("   Number of edges       = %d\n", state.getNumEdges());
 }
 
-void bp(char *out_file,
+void bp(char *out_file, 
         int n_whole, char **whole_names,
         int n_part, char **part_names, int *part_activity,
         int n_edge, char **edge_whole, char **edge_part,
         double alpha, double beta, double pi,
         int nburn, int ngen, int sub,
-        double penalty, char *initial)
+        double penalty, char *initial,
+        char **resultName, int resultName_size,
+        double *resultProb,
+        int *resultCount, int *resultSample,
+        int *resultDegree, int *resultResponse)
 {
   State state;
 
@@ -971,35 +975,52 @@ void bp(char *out_file,
   ofstream whole;
   openOutputFile(whole,state.getRootFile() + ".whole");
   whole << "Name" << "\t" << "ActiveProbability" << "\t" << "Count" << "\t" << "Sample" << "\t" << "Degree" << "\t" << "Response" << endl;
-  for ( int i=0; i<counts.size(); ++i )
+  for ( int i=0; i<counts.size(); ++i ) {
+    strncpy(resultName[i], names[i].c_str(), resultName_size);
+
+    resultProb[i] = counts[i]/(double)(state.getSampleSize());
+    resultCount[i] = counts[i];
+    resultSample[i] = state.getSampleSize();
+    resultDegree[i] = degree[i];
+    resultResponse[i] = response[i];
+
     whole << names[i] << "\t"
 	  << setprecision(4) << setw(8) << counts[i]/(double)(state.getSampleSize()) << "\t"
 	  << counts[i] << "\t"
 	  << state.getSampleSize() << "\t"
 	  << degree[i] << "\t"
 	  << response[i] << endl;
+  }
 
   time_t endTime;
   time(&endTime);
 }
 
 extern "C" {
-  void R_bp(char **out, 
+  void R_bp(char **out,
             int *n_whole, char **whole_names,
             int *n_part, char **part_names, int *part_activity,
             int *n_edge, char **edge_whole, char **edge_part,
             double *alpha, double *beta, double *pi,
             int *nburn, int *ngen, int *sub, 
-            double *penalty, char **initial)
+            double *penalty, char **initial,
+            char **resultName, int *resultName_size,
+            double *resultProb,
+            int *resultCount, int *resultSample,
+            int *resultDegree, int *resultResponse)
   {
     GetRNGstate();
 
-    bp(*out, *n_whole, whole_names,
+    bp(*out,
+       *n_whole, whole_names,
        *n_part, part_names, part_activity,
        *n_edge, edge_whole, edge_part,
        *alpha, *beta, *pi,
        *nburn, *ngen, *sub,
-       *penalty, *initial);
+       *penalty, *initial,
+       resultName, *resultName_size,
+       resultProb, resultCount, 
+       resultSample, resultDegree, resultResponse);
 
     PutRNGstate();
   }
