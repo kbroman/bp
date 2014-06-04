@@ -13,8 +13,8 @@
 #' @param penalty Penalty per illegal node to loglikelihood
 #' @param initial Initial state (see Details)
 #'
-#' @return data frame with "whole" results; burn+sample detail are included as attributes,
-#' \code{"burn"} and \code{"sample"}
+#' @return data frame with "whole" results; burn+sample detail are included as an attribute,
+#' \code{"samples"}, which is a matrix
 #'
 #' @details The \code{initial} argument can take one of three values:
 #' \code{"inactive"} - all whole nodes inactive; \code{"random"} - all
@@ -28,10 +28,10 @@
 #'
 #' @examples
 #' data(t2d)
-#' bp.out <- bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
+#' bp.out <- bp(whole=t2d$whole, part=t2d$part, edge=t2d$edge,
 #'              nburn=1000, ngen=1000, sub=100)
 bp <-
-function(out="testrun", whole, part, edge,
+function(whole, part, edge,
          alpha=0.05, beta=0.2, pi=0.01,
          nburn=10000, ngen=100000, sub=1000, penalty=2,
          initial=c("inactive", "random", "high"))
@@ -58,7 +58,6 @@ function(out="testrun", whole, part, edge,
   nsavedInt <- 7
 
   z <- .C("R_bp",
-          as.character(out),
           as.integer(length(whole)),
           as.character(whole),
           as.integer(length(part)),

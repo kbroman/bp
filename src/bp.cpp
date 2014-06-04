@@ -683,74 +683,6 @@ double State::mcmcFlipWNode(bool postBurnin)
   return acceptanceProbability;
 }
 
-// Used for error messages when a file fails to open.
-void openFile(ifstream& f,string name)
-{
-  f.open(name.c_str());
-  if ( f.fail() || f.bad() ) {
-    error("Error: could not open file %s for reading.\n", name.c_str());
-  }
-}
-
-void openOutputFile(ofstream& f,string name)
-{
-  f.open(name.c_str());
-  f.setf(ios::fixed,ios::floatfield);
-  if ( f.fail() || f.bad() ) {
-    error("Error: could not open file %s for output.\n", name.c_str());
-  }
-}
-
-// Read the file with the part node information.
-// File format is:    name return
-//   where return is either 0 or 1 and is the data associated with each part node.
-// Names must be unique or it is an error.
-// Names must be single strings.
-void readPNodeFile(ifstream& f,map<string,int>& m,map<string,int>& response,string fileName)
-{
-  stringstream s;
-  string line;
-  int i=0;
-
-  while ( getline(f,line) ) {
-    stringstream s(line);
-    string name;
-    int x;
-    s >> name >> x;
-    if ( m.count(name) > 0 ) {
-      error("Error: %s line %d contains a name already used in the same file.\n", 
-               fileName.c_str(), i+1);
-    }
-    else {
-      m[name] = i++;
-      response[name] = x;
-    }
-  }
-}
-
-// Read names of the whole nodes.
-// File format is one name per line.
-// It is an error if the names are not unique.
-// Names must be single strings.
-void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
-{
-  stringstream s;
-  string line;
-  int i=0;
-
-  while ( getline(f,line) ) {
-    stringstream s(line);
-    string name;
-    s >> name;
-    if ( m.count(name) > 0 ) {
-      error("Error: %s line %d contains a name already used in the same file.\n", 
-            fileName.c_str(), i+1);
-    }
-    else
-      m[name] = i++;
-  }
-}
-
 // Long messy function that does many things.
 // Might be nice to separate into component functions.
 // 1. Parse the command line; exit if failure.
@@ -762,8 +694,7 @@ void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
 // 7. Select a random starting state by selecting random active whole nodes.
 // 8. Update the number of active neighbors for all nodes and update the number of illegal nodes.
 // 9. Calculate the initial log-likelihood.
-void initialize(char *out,
-                int n_whole, char **whole_names,
+void initialize(int n_whole, char **whole_names,
                 int n_part, char **part_names, int *part_activity,
                 int n_edge, char **edge_whole, char **edge_part,
                 double alpha, double beta, double pi,
@@ -772,11 +703,8 @@ void initialize(char *out,
                 State &state)
 
 {
-  string rootFile;
   int numGen=0, numBurnin=0, subSampleRate=1, i;
   string initialState = "inactive";
-
-  rootFile = (string)out;
 
   initialState = (string)initial;
   if ( (initialState != "inactive") && (initialState != "random") && (initialState != "high") ) {
@@ -795,9 +723,6 @@ void initialize(char *out,
     error("pi must be > 0 and < 1");
   if ( numGen < 0 || numBurnin < 0 || subSampleRate < 0)
     error("numGen, numBurnin, and subSampleRate must be >= 0");
-
-// Set root file
-  state.setRootFile(rootFile);
 
 // Set alpha and beta and pi
   REprintf("Setting alpha, beta, and pi....");
@@ -888,8 +813,7 @@ void initialize(char *out,
   REprintf("   Number of edges       = %d\n", state.getNumEdges());
 }
 
-void bp(char *out_file, 
-        int n_whole, char **whole_names,
+void bp(int n_whole, char **whole_names,
         int n_part, char **part_names, int *part_activity,
         int n_edge, char **edge_whole, char **edge_part,
         double alpha, double beta, double pi,
@@ -907,18 +831,11 @@ void bp(char *out_file,
   time_t initTime;
   time(&initTime);
 
-  initialize(out_file,
-             n_whole, whole_names,
+  initialize(n_whole, whole_names,
              n_part, part_names, part_activity,
              n_edge, edge_whole, edge_part,
              alpha,beta,pi,nburn,ngen,sub,penalty,initial,
              state);
-
-// open output files
-  ofstream burn;
-  openOutputFile(burn,state.getRootFile() + ".burn");
-  ofstream sample;
-  openOutputFile(sample,state.getRootFile() + ".sample");
 
   const int window=100000;
   time_t start,current;
@@ -926,7 +843,6 @@ void bp(char *out_file,
 
 // burnin
   REprintf("Begin burnin runs.\n");
-  burn << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumBurnin(); ++k ) {
 
     R_CheckUserInterrupt(); /* check for ^C */
@@ -948,9 +864,6 @@ void bp(char *out_file,
       SamplesInt[6][cursample] = state.getNumActivePartNodes();
 
       cursample++;
-
-      burn << setprecision(4) << setw(8) << acceptanceProbability << " ";
-      state.print(burn);
     }
     if ( k % window == 0 ) {
       time(&current);
@@ -967,7 +880,6 @@ void bp(char *out_file,
 // sample
   REprintf("Begin sample runs.\n");
   time(&start);
-  sample << "AcceptanceProb LogLikelihood LogPrior ActiveOne ActiveZero InactiveOne InactiveZero Illegal ActiveWhole ActivePart" << endl;
   for ( int k=1; k<=state.getNumGenerations(); ++k ) {
 
     R_CheckUserInterrupt(); /* check for ^C */
@@ -989,9 +901,6 @@ void bp(char *out_file,
       SamplesInt[6][cursample] = state.getNumActivePartNodes();
 
       cursample++;
-
-      sample << setprecision(4) << setw(8) << acceptanceProbability << " ";
-      state.print(sample);
     }
     if ( k % window == 0 ) {
       time(&current);
@@ -1006,16 +915,13 @@ void bp(char *out_file,
         REprintf("%d seconds.\n", remainSeconds);
     }
   }
-// write output
+// save output
   vector<int> counts;
   vector<string> names;
   vector<int> response;
   vector<int> degree;
   state.getCounts(counts,names,response,degree);
 
-  ofstream whole;
-  openOutputFile(whole,state.getRootFile() + ".whole");
-  whole << "Name" << "\t" << "ActiveProbability" << "\t" << "Count" << "\t" << "Sample" << "\t" << "Degree" << "\t" << "Response" << endl;
   for ( int i=0; i<counts.size(); ++i ) {
     strncpy(resultName[i], names[i].c_str(), resultName_size);
 
@@ -1024,13 +930,6 @@ void bp(char *out_file,
     resultSample[i] = state.getSampleSize();
     resultDegree[i] = degree[i];
     resultResponse[i] = response[i];
-
-    whole << names[i] << "\t"
-	  << setprecision(4) << setw(8) << counts[i]/(double)(state.getSampleSize()) << "\t"
-	  << counts[i] << "\t"
-	  << state.getSampleSize() << "\t"
-	  << degree[i] << "\t"
-	  << response[i] << endl;
   }
 
   time_t endTime;
@@ -1038,8 +937,7 @@ void bp(char *out_file,
 }
 
 extern "C" {
-  void R_bp(char **out,
-            int *n_whole, char **whole_names,
+  void R_bp(int *n_whole, char **whole_names,
             int *n_part, char **part_names, int *part_activity,
             int *n_edge, char **edge_whole, char **edge_part,
             double *alpha, double *beta, double *pi,
@@ -1064,8 +962,7 @@ extern "C" {
     for(i=1; i<7; i++)
       SamplesInt[i] = SamplesInt[i-1] + *n_samples;
 
-    bp(*out,
-       *n_whole, whole_names,
+    bp(*n_whole, whole_names,
        *n_part, part_names, part_activity,
        *n_edge, edge_whole, edge_part,
        *alpha, *beta, *pi,

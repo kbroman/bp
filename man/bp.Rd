@@ -3,8 +3,8 @@
 \alias{bp}
 \title{MCMC with bipartite graph}
 \usage{
-bp(out = "testrun", whole, part, edge, alpha = 0.05, beta = 0.2,
-  pi = 0.01, nburn = 10000, ngen = 100000, sub = 1000, penalty = 2,
+bp(whole, part, edge, alpha = 0.05, beta = 0.2, pi = 0.01,
+  nburn = 10000, ngen = 100000, sub = 1000, penalty = 2,
   initial = c("inactive", "random", "high"))
 }
 \arguments{
@@ -31,8 +31,8 @@ bp(out = "testrun", whole, part, edge, alpha = 0.05, beta = 0.2,
 \item{initial}{Initial state (see Details)}
 }
 \value{
-data frame with "whole" results; burn+sample detail are included as attributes,
-\code{"burn"} and \code{"sample"}
+data frame with "whole" results; burn+sample detail are included as an attribute,
+\code{"samples"}, which is a matrix
 }
 \description{
 MCMC with bipartite graph
@@ -46,7 +46,7 @@ with response equal to 1 above 0.4 are active, no illegal nodes.
 }
 \examples{
 data(t2d)
-bp.out <- bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
+bp.out <- bp(whole=t2d$whole, part=t2d$part, edge=t2d$edge,
              nburn=1000, ngen=1000, sub=100)
 }
 \keyword{models}
