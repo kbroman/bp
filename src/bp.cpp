@@ -755,20 +755,20 @@ void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
 // 7. Select a random starting state by selecting random active whole nodes.
 // 8. Update the number of active neighbors for all nodes and update the number of illegal nodes.
 // 9. Calculate the initial log-likelihood.
-void initialize(char *out, char *whole, char *part, char *edge,
+void initialize(char *out,
+                int n_whole, char **whole_names,
+                int n_part, char **part_names, int *part_activity,
+                int n_edge, char **edge_whole, char **edge_part,
                 double alpha, double beta, double pi,
                 int nburn, int ngen, int sub,
                 double penalty, char *initial,
                 State &state)
 
 {
-  string wholeFile,partFile,edgeFile,rootFile;
+  string rootFile;
   int numGen=0, numBurnin=0, subSampleRate=1, i;
   string initialState = "inactive";
 
-  wholeFile = (string)whole;
-  partFile = (string)part;
-  edgeFile = (string)edge;
   rootFile = (string)out;
 
   initialState = (string)initial;
@@ -793,7 +793,6 @@ void initialize(char *out, char *whole, char *part, char *edge,
   state.setRootFile(rootFile);
 
 // Set alpha and beta and pi
-
   REprintf("Setting alpha, beta, and pi....");
   state.setAlpha(alpha);
   state.setBeta(beta);
@@ -801,32 +800,34 @@ void initialize(char *out, char *whole, char *part, char *edge,
   REprintf("done.\n");
 
 // Set MCMC parameters
-
   state.setNumGenerations(numGen);
   state.setNumBurnin(numBurnin);
   state.setSubSampleRate(subSampleRate);
   state.setPenalty(penalty);
   state.setInitialState(initialState);
 
-// Read in the whole nodes
-
-  ifstream f;
-
-  REprintf("Reading in whole nodes....");
-  openFile(f,wholeFile);
+// Convert the whole nodes
+  REprintf("Converting whole nodes....");
   map<string,int> wnodeNames;
-  readWNodeFile(f,wnodeNames,wholeFile);
-  f.close();
+  for(i=0; i<n_whole; i++) {
+    string name = (string)(whole_names[i]);
+    if(wnodeNames.count(name) > 0)
+      error("Error: whole node %d contains a name already used.\n", i+1);
+    wnodeNames[name] = i;
+  }
   REprintf("done.\n");
 
-// Read in the part nodes
-
+// Convert the part nodes
   REprintf("Reading in part nodes....");
-  openFile(f,partFile);
   map<string,int> pnodeNames;
   map<string,int> responses;
-  readPNodeFile(f,pnodeNames,responses,partFile);
-  f.close();
+  for(i=0; i<n_part; i++) {
+    string name = (string)(part_names[i]);
+    if(pnodeNames.count(name) > 0)
+      error("Error: part node %d contains a name already used.\n", i+1);
+    pnodeNames[name] = i;
+    responses[name] = part_activity[i];
+  }
   REprintf("done.\n");
 
 // Initialize nodes in State
@@ -847,27 +848,20 @@ void initialize(char *out, char *whole, char *part, char *edge,
   }
   REprintf("done.\n");
 
-// Read edge file and initialize edges in State
-
-  REprintf("Reading and initializing edges....");
-  openFile(f,edgeFile);
-  string line;
-  i=1;
-  while ( getline(f,line) ) {
-    stringstream s(line);
-    string wname,pname;
-    s >> wname >> pname;
-    if ( (wnodeNames.count(wname) == 0) || (pnodeNames.count(pname) == 0) ) {
-      error("Error: edge file %s line %d/%s/ contains a node name that is not in the files %s or %s.\n",
-            edgeFile.c_str(), i, line.c_str(), wholeFile.c_str(), partFile.c_str());
+// Convert edges and initialize edges in State
+  REprintf("Converting and initializing edges....");
+  for(i=0; i<n_edge; i++) {
+    string wname = (string)(edge_whole[i]);
+    string pname = (string)(edge_part[i]);
+    if((wnodeNames.count(wname) == 0) || (pnodeNames.count(pname) == 0)) {
+      error("Error: edge %d (%s - %s) contains an invalid node name.\n",
+            i+1, edge_whole[i], edge_part[i]);
     }
-    state.addEdge(wnodeNames[wname],pnodeNames[pname]);
-    ++i;
+    state.addEdge(wnodeNames[wname], pnodeNames[pname]);
   }
   REprintf("done.\n");
 
 // Initialize activities
-
   REprintf("Initiating activities at random....");
   state.countResponse();
   state.initiateActivities();
@@ -887,7 +881,10 @@ void initialize(char *out, char *whole, char *part, char *edge,
   REprintf("   Number of edges       = %d\n", state.getNumEdges());
 }
 
-void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
+void bp(char *out_file,
+        int n_whole, char **whole_names,
+        int n_part, char **part_names, int *part_activity,
+        int n_edge, char **edge_whole, char **edge_part,
         double alpha, double beta, double pi,
         int nburn, int ngen, int sub,
         double penalty, char *initial)
@@ -897,7 +894,10 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
   time_t initTime;
   time(&initTime);
 
-  initialize(out_file,whole_file,part_file,edge_file,
+  initialize(out_file,
+             n_whole, whole_names,
+             n_part, part_names, part_activity,
+             n_edge, edge_whole, edge_part,
              alpha,beta,pi,nburn,ngen,sub,penalty,initial,
              state);
 
@@ -984,14 +984,19 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 }
 
 extern "C" {
-  void R_bp(char **out, char **whole, char **part, char **edge,
+  void R_bp(char **out, 
+            int *n_whole, char **whole_names,
+            int *n_part, char **part_names, int *part_activity,
+            int *n_edge, char **edge_whole, char **edge_part,
             double *alpha, double *beta, double *pi,
             int *nburn, int *ngen, int *sub, 
             double *penalty, char **initial)
   {
     GetRNGstate();
 
-    bp(*out, *whole, *part, *edge,
+    bp(*out, *n_whole, whole_names,
+       *n_part, part_names, part_activity,
+       *n_edge, edge_whole, edge_part,
        *alpha, *beta, *pi,
        *nburn, *ngen, *sub,
        *penalty, *initial);

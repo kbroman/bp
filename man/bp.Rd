@@ -3,19 +3,18 @@
 \alias{bp}
 \title{MCMC with bipartite graph}
 \usage{
-bp(out = "run1", whole = "T2D.whole", part = "T2D.part",
-  edge = "T2D.edge", alpha = 0.05, beta = 0.2, pi = 0.01,
+bp(out = "run1", whole, part, edge, alpha = 0.05, beta = 0.2, pi = 0.01,
   nburn = 10000, ngen = 100000, sub = 1000, penalty = 2,
   initial = c("inactive", "random", "high"))
 }
 \arguments{
 \item{out}{Root name for output files}
 
-\item{whole}{Input file with whole node info}
+\item{whole}{Vector of character strings with names of whole nodes}
 
-\item{part}{Input file with part node info}
+\item{part}{Vector of 0's and 1's indicating active part nodes; names are the names of the part nodes}
 
-\item{edge}{Input file with edge info}
+\item{edge}{Matrix with two columns; each row indicates an edge between a whole node and a part node}
 
 \item{alpha}{Parameter alpha (0 < alpha < beta < 1)}
 
@@ -42,6 +41,11 @@ The \code{initial} argument can take one of three values:
 whole nodes active with probability \code{pi}, no illegal nodes; or
 \code{"high"} - all nodes with proportion of connected part nodes
 with response equal to 1 above 0.4 are active, no illegal nodes.
+}
+\examples{
+data(t2d)
+bp(out="testrun", whole=t2d$whole, part=t2d$part, edge=t2d$edge,
+   nburn=1000, ngen=1000, sub=100)
 }
 \keyword{models}
 
