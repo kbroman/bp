@@ -849,20 +849,21 @@ void bp(int n_whole, char **whole_names,
 
     double acceptanceProbability = state.mcmcFlipWNode(false);
     if ( k % state.getSubSampleRate() == 0 ) {
-      if(cursample >= n_samples)
-        error("cursample exceeds available slots\n");
-      SamplesDouble[0][cursample] = acceptanceProbability;
-      SamplesDouble[1][cursample] = state.getLogLikelihood();
-      SamplesDouble[2][cursample] = state.getLogPrior();
+      if(cursample >= n_samples) {
+        warning("cursample exceeds available slots\n");
+      } else {
+        SamplesDouble[0][cursample] = acceptanceProbability;
+        SamplesDouble[1][cursample] = state.getLogLikelihood();
+        SamplesDouble[2][cursample] = state.getLogPrior();
 
-      SamplesInt[0][cursample] = state.getNumActiveOne();
-      SamplesInt[1][cursample] = state.getNumActiveZero();
-      SamplesInt[2][cursample] = state.getNumInactiveOne();
-      SamplesInt[3][cursample] = state.getNumInactiveZero();
-      SamplesInt[4][cursample] = state.getNumIllegalNodes();
-      SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
-      SamplesInt[6][cursample] = state.getNumActivePartNodes();
-
+        SamplesInt[0][cursample] = state.getNumActiveOne();
+        SamplesInt[1][cursample] = state.getNumActiveZero();
+        SamplesInt[2][cursample] = state.getNumInactiveOne();
+        SamplesInt[3][cursample] = state.getNumInactiveZero();
+        SamplesInt[4][cursample] = state.getNumIllegalNodes();
+        SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
+        SamplesInt[6][cursample] = state.getNumActivePartNodes();
+      }
       cursample++;
     }
     if ( k % window == 0 ) {
@@ -886,20 +887,21 @@ void bp(int n_whole, char **whole_names,
 
     double acceptanceProbability = state.mcmcFlipWNode(true);
     if ( k % state.getSubSampleRate() == 0 ) {
-      if(cursample >= n_samples)
-        error("cursample exceeds available slots\n");
-      SamplesDouble[0][cursample] = acceptanceProbability;
-      SamplesDouble[1][cursample] = state.getLogLikelihood();
-      SamplesDouble[2][cursample] = state.getLogPrior();
+      if(cursample >= n_samples) {
+        warning("cursample exceeds available slots\n");
+      } else {
+        SamplesDouble[0][cursample] = acceptanceProbability;
+        SamplesDouble[1][cursample] = state.getLogLikelihood();
+        SamplesDouble[2][cursample] = state.getLogPrior();
 
-      SamplesInt[0][cursample] = state.getNumActiveOne();
-      SamplesInt[1][cursample] = state.getNumActiveZero();
-      SamplesInt[2][cursample] = state.getNumInactiveOne();
-      SamplesInt[3][cursample] = state.getNumInactiveZero();
-      SamplesInt[4][cursample] = state.getNumIllegalNodes();
-      SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
-      SamplesInt[6][cursample] = state.getNumActivePartNodes();
-
+        SamplesInt[0][cursample] = state.getNumActiveOne();
+        SamplesInt[1][cursample] = state.getNumActiveZero();
+        SamplesInt[2][cursample] = state.getNumInactiveOne();
+        SamplesInt[3][cursample] = state.getNumInactiveZero();
+        SamplesInt[4][cursample] = state.getNumIllegalNodes();
+        SamplesInt[5][cursample] = state.getNumActiveWholeNodes();
+        SamplesInt[6][cursample] = state.getNumActivePartNodes();
+      }
       cursample++;
     }
     if ( k % window == 0 ) {
