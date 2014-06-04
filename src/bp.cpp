@@ -681,8 +681,7 @@ void openFile(ifstream& f,string name)
 {
   f.open(name.c_str());
   if ( f.fail() || f.bad() ) {
-    REprintf("Error: could not open file %s for reading.\n", name.c_str());
-    exit(1);
+    error("Error: could not open file %s for reading.\n", name.c_str());
   }
 }
 
@@ -691,8 +690,7 @@ void openOutputFile(ofstream& f,string name)
   f.open(name.c_str());
   f.setf(ios::fixed,ios::floatfield);
   if ( f.fail() || f.bad() ) {
-    REprintf("Error: could not open file %s for output.\n", name.c_str());
-    exit(1);
+    error("Error: could not open file %s for output.\n", name.c_str());
   }
 }
 
@@ -713,9 +711,8 @@ void readPNodeFile(ifstream& f,map<string,int>& m,map<string,int>& response,stri
     int x;
     s >> name >> x;
     if ( m.count(name) > 0 ) {
-      REprintf("Error: %s line %d contains a name already used in the same file.\n", 
+      error("Error: %s line %d contains a name already used in the same file.\n", 
                fileName.c_str(), i+1);
-      exit(1);
     }
     else {
       m[name] = i++;
@@ -739,9 +736,8 @@ void readWNodeFile(ifstream& f,map<string,int>& m,string fileName)
     string name;
     s >> name;
     if ( m.count(name) > 0 ) {
-      REprintf("Error: %s line %d contains a name already used in the same file.\n", 
-               fileName.c_str(), i+1);
-      exit(1);
+      error("Error: %s line %d contains a name already used in the same file.\n", 
+            fileName.c_str(), i+1);
     }
     else
       m[name] = i++;
@@ -862,9 +858,8 @@ void initialize(char *out, char *whole, char *part, char *edge,
     string wname,pname;
     s >> wname >> pname;
     if ( (wnodeNames.count(wname) == 0) || (pnodeNames.count(pname) == 0) ) {
-      REprintf("Error: edge file %s line %d/%s/ contains a node name that is not in the files %s or %s.\n",
-               edgeFile.c_str(), i, line.c_str(), wholeFile.c_str(), partFile.c_str());
-      exit(1);
+      error("Error: edge file %s line %d/%s/ contains a node name that is not in the files %s or %s.\n",
+            edgeFile.c_str(), i, line.c_str(), wholeFile.c_str(), partFile.c_str());
     }
     state.addEdge(wnodeNames[wname],pnodeNames[pname]);
     ++i;

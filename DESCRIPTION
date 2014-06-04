@@ -1,6 +1,6 @@
 Package: bp
 Version: 0.1-1
-Date: 6/3/2014
+Date: 6/4/2014
 Title: Test package for calling bp
 Description: Test package for calling bp
 Author: Bret Larget, Karl W Broman <kbroman@biostat.wisc.edu>
