@@ -648,7 +648,6 @@ double State::mcmcFlipWNode(bool postBurnin)
   set<Node*> changedNodes;
 // use alias method to select wnode
   int i = wDist.pick();
-//  int i = rint(wnodes.size());
   (wnodes[i])->mcmcFlipWNode(changedNodes,stateNumbers);
   updateIllegal(changedNodes);
   double newLogLikelihood = calculateLogLikelihood();
@@ -670,15 +669,8 @@ double State::mcmcFlipWNode(bool postBurnin)
 // change storage from whole nodes and looping through all to set of active node indices and counts with the state
   if ( postBurnin && stateNumbers.numIllegalNodes == 0 ) {
     sampleSize++;
-//    clock_t time1,time2,time3;
-//    time1 = clock();
-//    for ( vector<WNode*>::iterator p=wnodes.begin(); p!= wnodes.end(); ++p )
-//      (*p)->updateCount();
-//    time2 = clock();
     for ( set<int>::iterator p=activeWholeNodeIndices.begin(); p!= activeWholeNodeIndices.end(); ++p )
       activeCounts[*p]++;
-//    time3 = clock();
-//    cerr << time2 - time1 << " " << time3 - time2 << endl;
   }
 
   return acceptanceProbability;
@@ -994,11 +986,6 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 	  << degree[i] << "\t"
 	  << response[i] << endl;
 
-
-//  ofstream test;
-//  openOutputFile(test,state.getRootFile() + ".test");
-//  state.writeCounts(test);
-  
   time_t endTime;
   time(&endTime);
   logfile << endl << "ended at " << ctime(&endTime) << endl;
@@ -1006,21 +993,18 @@ void bp(char *out_file, char *whole_file, char *part_file, char *edge_file,
 }
 
 extern "C" {
+  void R_bp(char **out, char **whole, char **part, char **edge,
+            double *alpha, double *beta, double *pi,
+            int *nburn, int *ngen, int *sub, 
+            double *penalty, char **initial)
+  {
+    GetRNGstate();
 
-void R_bp(char **out, char **whole, char **part, char **edge,
-          double *alpha, double *beta, double *pi,
-          int *nburn, int *ngen, int *sub, 
-          double *penalty, char **initial)
-{
-  GetRNGstate();
+    bp(*out, *whole, *part, *edge,
+       *alpha, *beta, *pi,
+       *nburn, *ngen, *sub,
+       *penalty, *initial);
 
-  bp(*out, *whole, *part, *edge,
-     *alpha, *beta, *pi,
-     *nburn, *ngen, *sub,
-     *penalty, *initial);
-
-  PutRNGstate();
-}
-
-
+    PutRNGstate();
+  }
 }
